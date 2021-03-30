@@ -74,6 +74,8 @@ module ram_1p #(
     endfunction
   `endif
 
+`define SRAM_INIT_FILE ../../../../../examples/sw/led/led.vmem
+
   `ifdef SRAM_INIT_FILE
     localparam MEM_FILE = `"`SRAM_INIT_FILE`";
     initial begin
