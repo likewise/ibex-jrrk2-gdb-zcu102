@@ -1,0 +1,45 @@
+CAPI=2:
+# Copyright lowRISC contributors.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+name: "lowrisc:ibex:top_zcu102:0.1"
+description: "Ibex example toplevel for ZCU102 board"
+filesets:
+  files_rtl_zcu102:
+    depend:
+      - lowrisc:ibex:ibex_core
+      - lowrisc:ibex:fpga_xilinx_shared
+    files:
+      - rtl/top_zcu102.sv
+    file_type: systemVerilogSource
+
+  files_constraints:
+    files:
+      - data/pins_zcu102.xdc
+    file_type: xdc
+
+parameters:
+  # XXX: This parameter needs to be absolute, or relative to the *.runs/synth_1
+  # directory. It's best to pass it as absolute path when invoking fusesoc, e.g.
+  # --SRAM_INIT_FILE=$PWD/sw/led/led.vmem
+  # XXX: The VMEM file should be added to the sources of the Vivado project to
+  # make the Vivado dependency tracking work. However this requires changes to
+  # fusesoc first.
+  SRAM_INIT_FILE:
+    datatype: str
+    description: SRAM initialization file in vmem hex format
+    default: "../../../../../examples/sw/led/led.vmem"
+    paramtype: vlogdefine
+
+targets:
+  synth:
+    default_tool: vivado
+    filesets:
+      - files_rtl_zcu102
+      - files_constraints
+    toplevel: top_zcu102
+    parameters:
+      - SRAM_INIT_FILE
+    tools:
+      vivado:
+        part: "zu9eg-ffvb1156-2-e"  # Default to ZCU102
