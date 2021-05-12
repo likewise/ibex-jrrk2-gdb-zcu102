@@ -12,6 +12,8 @@ filesets:
       - pulp-platform:riscv-dbg:0.1
     files:
       - rtl/jtag_pkg.sv
+      - rtl/ibex_super_system.sv
+      - rtl/gpio.sv
       - rtl/top_artya7.sv
       - rtl/dm_top.sv
     file_type: systemVerilogSource
@@ -31,7 +33,7 @@ parameters:
   SRAMInitFile:
     datatype: str
     description: SRAM initialization file in vmem hex format
-    default: "../../../../../examples/sw/led/led.vmem"
+    default: "../../../../../examples/sw/simple_system/super_system_gpio/super_system_gpio.vmem"
     paramtype: vlogparam
 
   # For value definition, please see ip/prim/rtl/prim_pkg.sv

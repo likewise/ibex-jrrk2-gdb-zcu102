@@ -1,32 +1,40 @@
-// Copyright lowRISC contributors.
-// Licensed under the Apache License, Version 2.0, see LICENSE for details.
-// SPDX-License-Identifier: Apache-2.0
-
-// Top-level debug module (DM)
-//
-// This module implements the RISC-V debug specification version 0.13,
-//
-// This toplevel wraps the PULP debug module available from
-// https://github.com/pulp-platform/riscv-dbg to match the needs of
-// the TL-UL-based lowRISC chip design.
-
-`include "prim_assert.sv"
+/* Copyright 2018 ETH Zurich and University of Bologna.
+* Copyright and related rights are licensed under the Solderpad Hardware
+* License, Version 0.51 (the “License”); you may not use this file except in
+* compliance with the License.  You may obtain a copy of the License at
+* http://solderpad.org/licenses/SHL-0.51. Unless required by applicable law
+* or agreed to in writing, software, hardware and materials distributed under
+* this License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR
+* CONDITIONS OF ANY KIND, either express or implied. See the License for the
+* specific language governing permissions and limitations under the License.
+*
+* File:   dm_top.sv
+* Author: Florian Zaruba <zarubaf@iis.ee.ethz.ch>
+* Date:   30.6.2018
+*
+* Description: Top-level of debug module (DM). This is an AXI-Slave.
+*              DTM protocol is equal to SiFives debug protocol to leverage
+*              SW infrastructure re-use. As of version 0.13
+*/
 
 module dm_top #(
-  parameter int              NrHarts = 1,
-  parameter logic [31:0]     IdcodeValue = 32'h 0000_0001
+  parameter int unsigned        NrHarts          = 1,
+  parameter int unsigned        BusWidth         = 32,
+  parameter int unsigned        DmBaseAddress    = 'h1000, // default to non-zero page
+  // Bitmask to select physically available harts for systems
+  // that don't use hart numbers in a contiguous fashion.
+  parameter logic [NrHarts-1:0] SelectableHarts  = {NrHarts{1'b1}},
+  parameter bit                 ReadByteEnable   = 1 // toggle new behavior to drive master_be_o during a read
 ) (
-  input  logic               clk_i,       // clock
-  input  logic               rst_ni,      // asynchronous reset active low, connect PoR
-                                          // here, not the system reset
-  input  logic               testmode_i,
-  output logic               ndmreset_o,  // non-debug module reset
-  output logic               dmactive_o,  // debug module is active
-  output logic [NrHarts-1:0] debug_req_o, // async debug request
-  input  logic [NrHarts-1:0] unavailable_i, // communicate whether the hart is unavailable
-                                            // (e.g.: power down)
+  input  logic                  clk_i,       // clock
+  input  logic                  rst_ni,      // asynchronous reset active low, connect PoR here, not the system reset
+  input  logic                  testmode_i,
+  output logic                  ndmreset_o,  // non-debug module reset
+  output logic                  dmactive_o,  // debug module is active
+  output logic [NrHarts-1:0]    debug_req_o, // async debug request
+  input  logic [NrHarts-1:0]    unavailable_i, // communicate whether the hart is unavailable (e.g.: power down)
+  input  dm::hartinfo_t [NrHarts-1:0] hartinfo_i,
 
-  // bus device with debug memory, for an execution based technique
   input  logic                  slave_req_i,
   input  logic                  slave_we_i,
   input  logic [BusWidth-1:0]   slave_addr_i,
@@ -34,7 +42,6 @@ module dm_top #(
   input  logic [BusWidth-1:0]   slave_wdata_i,
   output logic [BusWidth-1:0]   slave_rdata_o,
 
-  // bus host, for system bus accesses
   output logic                  master_req_o,
   output logic [BusWidth-1:0]   master_add_o,
   output logic                  master_we_o,
@@ -42,17 +49,20 @@ module dm_top #(
   output logic [BusWidth/8-1:0] master_be_o,
   input  logic                  master_gnt_i,
   input  logic                  master_r_valid_i,
-  input  logic [BusWidth-1:0]   master_r_rdata_i
+  input  logic [BusWidth-1:0]   master_r_rdata_i,
+
+  // Connection to DTM - compatible to RocketChip Debug Module
+  input  logic                  dmi_rst_ni,
+  input  logic                  dmi_req_valid_i,
+  output logic                  dmi_req_ready_o,
+  input  dm::dmi_req_t          dmi_req_i,
+
+  output logic                  dmi_resp_valid_o,
+  input  logic                  dmi_resp_ready_i,
+  output dm::dmi_resp_t         dmi_resp_o
 );
 
-  `ASSERT_INIT(paramCheckNrHarts, NrHarts > 0)
-
-  localparam int BusWidth = 32;
-  // all harts have contiguous IDs
-  localparam logic [NrHarts-1:0] SelectableHarts = {NrHarts{1'b1}};
-
   // Debug CSRs
-  dm::hartinfo_t [NrHarts-1:0]      hartinfo;
   logic [NrHarts-1:0]               halted;
   // logic [NrHarts-1:0]               running;
   logic [NrHarts-1:0]               resumeack;
@@ -87,44 +97,26 @@ module dm_top #(
   logic                             sberror_valid;
   logic [2:0]                       sberror;
 
-  dm::dmi_req_t  dmi_req;
-  dm::dmi_resp_t dmi_rsp;
-  logic dmi_req_valid, dmi_req_ready;
-  logic dmi_rsp_valid, dmi_rsp_ready;
-  logic dmi_rst_n;
-
-  // static debug hartinfo
-  localparam dm::hartinfo_t DebugHartInfo = '{
-    zero1:      '0,
-    nscratch:   2, // Debug module needs at least two scratch regs
-    zero0:      0,
-    dataaccess: 1'b1, // data registers are memory mapped in the debugger
-    datasize:   dm::DataCount,
-    dataaddr:   dm::DataAddr
-  };
-  for (genvar i = 0; i < NrHarts; i++) begin : gen_dm_hart_ctrl
-    assign hartinfo[i] = DebugHartInfo;
-  end
 
   dm_csrs #(
     .NrHarts(NrHarts),
     .BusWidth(BusWidth),
     .SelectableHarts(SelectableHarts)
   ) i_dm_csrs (
-    .clk_i                   ( clk_i                 ),
-    .rst_ni                  ( rst_ni                ),
-    .testmode_i              ( testmode_i            ),
-    .dmi_rst_ni              ( dmi_rst_n             ),
-    .dmi_req_valid_i         ( dmi_req_valid         ),
-    .dmi_req_ready_o         ( dmi_req_ready         ),
-    .dmi_req_i               ( dmi_req               ),
-    .dmi_resp_valid_o        ( dmi_rsp_valid         ),
-    .dmi_resp_ready_i        ( dmi_rsp_ready         ),
-    .dmi_resp_o              ( dmi_rsp               ),
-    .ndmreset_o              ( ndmreset_o            ),
-    .dmactive_o              ( dmactive_o            ),
+    .clk_i,
+    .rst_ni,
+    .testmode_i,
+    .dmi_rst_ni,
+    .dmi_req_valid_i,
+    .dmi_req_ready_o,
+    .dmi_req_i,
+    .dmi_resp_valid_o,
+    .dmi_resp_ready_i,
+    .dmi_resp_o,
+    .ndmreset_o,
+    .dmactive_o,
     .hartsel_o               ( hartsel               ),
-    .hartinfo_i              ( hartinfo              ),
+    .hartinfo_i,
     .halted_i                ( halted                ),
     .unavailable_i,
     .resumeack_i             ( resumeack             ),
@@ -158,19 +150,22 @@ module dm_top #(
   );
 
   dm_sba #(
-    .BusWidth(BusWidth)
+    .BusWidth(BusWidth),
+    .ReadByteEnable(ReadByteEnable)
   ) i_dm_sba (
-    .clk_i                   ( clk_i                 ),
-    .rst_ni                  ( rst_ni                ),
-    .master_req_o            ( master_req_o          ),
-    .master_add_o            ( master_add_o          ),
-    .master_we_o             ( master_we_o           ),
-    .master_wdata_o          ( master_wdata_o        ),
-    .master_be_o             ( master_be_o           ),
-    .master_gnt_i            ( master_gnt_i          ),
-    .master_r_valid_i        ( master_r_valid_i      ),
-    .master_r_rdata_i        ( master_r_rdata_i      ),
+    .clk_i,
+    .rst_ni,
     .dmactive_i              ( dmactive_o            ),
+
+    .master_req_o,
+    .master_add_o,
+    .master_we_o,
+    .master_wdata_o,
+    .master_be_o,
+    .master_gnt_i,
+    .master_r_valid_i,
+    .master_r_rdata_i,
+
     .sbaddress_i             ( sbaddress_csrs_sba    ),
     .sbaddress_o             ( sbaddress_sba_csrs    ),
     .sbaddress_write_valid_i ( sbaddress_write_valid ),
@@ -192,16 +187,11 @@ module dm_top #(
     .NrHarts(NrHarts),
     .BusWidth(BusWidth),
     .SelectableHarts(SelectableHarts),
-    // The debug module provides a simplified ROM for systems that map the debug ROM to offset 0x0
-    // on the system bus. In that case, only one scratch register has to be implemented in the core.
-    // However, we require that the DM can be placed at arbitrary offsets in the system, which
-    // requires the generalized debug ROM implementation and two scratch registers. We hence set
-    // this parameter to a non-zero value (inside dm_mem, this just feeds into a comparison with 0).
-    .DmBaseAddress(1)
+    .DmBaseAddress(DmBaseAddress)
   ) i_dm_mem (
-    .clk_i                   ( clk_i                 ),
-    .rst_ni                  ( rst_ni                ),
-    .debug_req_o             ( debug_req_o           ),
+    .clk_i,
+    .rst_ni,
+    .debug_req_o,
     .hartsel_i               ( hartsel               ),
     .haltreq_i               ( haltreq               ),
     .resumereq_i             ( resumereq             ),
@@ -225,33 +215,4 @@ module dm_top #(
     .rdata_o                 ( slave_rdata_o         )
   );
 
-  // Bound-in DPI module replaces the TAP
-`ifndef DMIDirectTAP
-  // JTAG TAP
-  dmi_jtag #(
-    .IdcodeValue    (IdcodeValue)
-  ) dap (
-    .clk_i            (clk_i),
-    .rst_ni           (rst_ni),
-    .testmode_i       (testmode_i),
-
-    .dmi_rst_no       (dmi_rst_n),
-    .dmi_req_o        (dmi_req),
-    .dmi_req_valid_o  (dmi_req_valid),
-    .dmi_req_ready_i  (dmi_req_ready),
-
-    .dmi_resp_i       (dmi_rsp      ),
-    .dmi_resp_ready_o (dmi_rsp_ready),
-    .dmi_resp_valid_i (dmi_rsp_valid),
-
-    //JTAG
-    .tck_i            (1'b0),
-    .tms_i            (1'b0),
-    .trst_ni          (1'b0),
-    .td_i             (1'b0),
-    .td_o             (),
-    .tdo_oe_o         ()
-  );
-`endif
-
-endmodule
+endmodule : dm_top
