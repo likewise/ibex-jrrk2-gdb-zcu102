@@ -1,6 +1,6 @@
 ## Clock signal
 create_clock -period 8.000 -name sys_clk_pin -add [get_nets clk_sys]
-set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets clkgen/ibufds/O]
+#set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets clkgen/ibufds/O]
 
 # accept sub-optimal placement
 #set_property CLOCK_DEDICATED_ROUTE FALSE [get_ports jtag_tck_i]

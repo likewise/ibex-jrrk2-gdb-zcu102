@@ -40,13 +40,23 @@ module top_zcu102 (
   };
 
   logic clk_sys, rst_sys_n;
-  logic jtag_tck_i, jtag_tms_i, jtag_trst_ni, jtag_td_i, jtag_td_o;
+  logic jtag_tck_i, jtag_tms_i, jtag_trst_ni, jtag_td_i, jtag_td_o, jtag_td_oe_o;
 
   assign jtag_tck_i   = PMOD1_0;
   assign jtag_tms_i   = PMOD1_1;
   assign jtag_td_i    = PMOD1_2;
-  assign jtag_td_o    = PMOD1_3;
   assign jtag_trst_ni = PMOD1_4;
+
+`define TRISTATE
+`ifdef TRISTATE
+   IOBUF iobuf_tdo
+    (.I  (jtag_td_o),
+     .O  (),
+     .IO (PMOD1_3),
+     .T  (!jtag_td_oe_o));
+`else
+  assign PMOD1_3 = jtag_td_o;
+`endif
 
   //BUFG jtag_tck_bufg (
   //  .I (PMOD1_0),
@@ -166,7 +176,7 @@ module top_zcu102 (
     .trst_ni          (jtag_trst_ni),
     .td_i             (jtag_td_i),
     .td_o             (jtag_td_o),
-    .tdo_oe_o         (       )
+    .tdo_oe_o         (jtag_td_oe_o)
   );
 
   // Connect Ibex to SRAM

@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
+// Ultrascale+
 module clkgen_xilusp (
     input IO_CLK_P,
     input IO_CLK_N,
@@ -9,20 +10,24 @@ module clkgen_xilusp (
     output clk_sys,
     output rst_sys_n
 );
-  logic locked_pll;
   logic io_clk_buf;
+  // input buffer for differential signal
+  IBUFGDS ibufds
+    (.I  (IO_CLK_P),
+     .IB (IO_CLK_N),
+     .O  (io_clk_buf));
+
+// for ZCU102 use the input clock frequency as-is, timing closure achievable for 125 MHz
+// 
+`ifdef UNDEFINED
+
+  logic locked_pll;
   logic clk_50_buf;
   logic clk_50_unbuf;
   logic clk_fb_buf;
   logic clk_fb_unbuf;
 
-  // input buffer
-  IBUFDS ibufds
-    (.I  (IO_CLK_P),
-     .IB (IO_CLK_N),
-     .O  (io_clk_buf));
 
-`ifdef UNDEFINED
   PLLE4_ADV #(
     .CLKIN_PERIOD        (10.0),
     .COMPENSATION         ("AUTO"),
@@ -78,7 +83,7 @@ module clkgen_xilusp (
   assign clk_sys = clk_50_buf;
   // reset
   assign rst_sys_n = locked_pll & IO_RST_N;
-`else /* no PLL */
+`else /* ZCU102; no PLL */
   assign clk_sys = io_clk_buf;
   assign rst_sys_n = IO_RST_N;
 `endif
