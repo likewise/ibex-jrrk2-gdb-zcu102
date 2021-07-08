@@ -23,11 +23,17 @@ set_input_delay -clock tck -clock_fall 5.000 [get_ports PMOD1_2]
 set_input_delay -clock tck -clock_fall 5.000 [get_ports PMOD1_1]
 set_output_delay -clock tck 5.000 [get_ports PMOD1_3]
 
-set_max_delay -to [get_ports PMOD1_3] 20.000
+set_max_delay -to   [get_ports PMOD1_3] 20.000
 set_max_delay -from [get_ports PMOD1_0] 20.000
 set_max_delay -from [get_ports PMOD1_1] 20.000
 set_max_delay -from [get_ports PMOD1_2] 20.000
 set_max_delay -from [get_ports PMOD1_4] 20.000
+
+set_property PULLUP true [get_ports PMOD1_3];
+set_property PULLUP true [get_ports PMOD1_0];
+set_property PULLUP true [get_ports PMOD1_1];
+set_property PULLUP true [get_ports PMOD1_2];
+set_property PULLUP true [get_ports PMOD1_4];
 
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets PMOD1_0]
 #set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets {PMOD1_0_IBUF_inst/O}]
