@@ -1,0 +1,58 @@
+CAPI=2:
+# Copyright lowRISC contributors.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+name: "lowrisc:ibex:top_zcu102:0.1"
+description: "Ibex example toplevel for ZCU102 board"
+filesets:
+  files_rtl_zcu102:
+    depend:
+      - lowrisc:ibex:ibex_top
+      - lowrisc:ibex:fpga_xilinx_shared
+      - pulp-platform:riscv-dbg:0.1
+    files:
+      - rtl/jtag_pkg.sv
+      - rtl/ibex_super_system.sv
+      - rtl/gpio.sv
+      - rtl/top_zcu102.sv
+      - rtl/dm_top.sv
+    file_type: systemVerilogSource
+
+  files_constraints:
+    files:
+      - data/top_zcu102.xdc
+      - data/zcu102.xdc
+    file_type: xdc
+
+parameters:
+  # XXX: This parameter needs to be absolute, or relative to the *.runs/synth_1
+  # directory. It's best to pass it as absolute path when invoking fusesoc, e.g.
+  # --SRAMInitFile=$PWD/sw/led/led.vmem
+  # XXX: The VMEM file should be added to the sources of the Vivado project to
+  # make the Vivado dependency tracking work. However this requires changes to
+  # fusesoc first.
+  SRAMInitFile:
+    datatype: str
+    description: SRAM initialization file in vmem hex format
+    default: "../../../../../examples/sw/simple_system/super_system_gpio/super_system_gpio.vmem"
+    paramtype: vlogparam
+
+  # For value definition, please see ip/prim/rtl/prim_pkg.sv
+  PRIM_DEFAULT_IMPL:
+    datatype: str
+    paramtype: vlogdefine
+    description: Primitives implementation to use, e.g. "prim_pkg::ImplGeneric".
+
+targets:
+  synth:
+    default_tool: vivado
+    filesets:
+      - files_rtl_zcu102
+      - files_constraints
+    toplevel: top_zcu102
+    parameters:
+      - SRAMInitFile
+      - PRIM_DEFAULT_IMPL=prim_pkg::ImplXilinx
+    tools:
+      vivado:
+        part: "zu9eg-ffvb1156-2-e"  # Default to ZCU102

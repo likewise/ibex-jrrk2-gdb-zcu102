@@ -58,11 +58,20 @@ run-simple-system: sw-simple-hello | $(Vibex_simple_system)
 # - "build-arty-100"
 # - "program-arty"
 arty-sw-program = examples/sw/led/led.vmem
+.PHONY: sw-led
 sw-led: $(arty-sw-program)
 
 .PHONY: $(arty-sw-program)
 $(arty-sw-program):
 	cd examples/sw/led && $(MAKE)
+
+super-system-gpio-sw-program = examples/sw/simple_system/super_system_gpio/super_system_gpio.vmem
+.PHONY: super-system
+super-system: $(super-system-gpio-sw-program)
+
+.PHONY: $(super-system-gpio-sw-program)
+$(super-system-gpio-sw-program):
+	cd examples/sw/simple_system/super_system_gpio && $(MAKE)
 
 .PHONY: build-arty-35
 build-arty-35: sw-led
@@ -79,6 +88,19 @@ program-arty:
 	fusesoc --cores-root=. run --target=synth --run \
 		lowrisc:ibex:top_artya7
 
+# ZCU102 FPGA super system gpio example
+# Use the following targets
+# - "build-zcu102"
+# - "program-zcu102"
+.PHONY: build-zcu102
+build-zcu102: super-system
+	fusesoc --cores-root=. run --target=synth --setup --build \
+		lowrisc:ibex:top_zcu102 --part xczu9eg-ffvb1156-2-e
+
+.PHONY: program-zcu102
+program-zcu102:
+	fusesoc --cores-root=. run --target=synth --run \
+		lowrisc:ibex:top_zcu102
 
 # Lint check
 .PHONY: lint-core-tracing
