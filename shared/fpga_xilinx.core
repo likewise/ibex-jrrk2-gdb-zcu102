@@ -11,6 +11,7 @@ filesets:
       - lowrisc:prim:ram_2p
     files:
       - rtl/fpga/xilinx/clkgen_xil7series.sv
+      - rtl/fpga/xilinx/clkgen_xilusp.sv
       - rtl/ram_1p.sv
       - rtl/ram_2p.sv
       - rtl/bus.sv
