@@ -25,6 +25,7 @@ CC = riscv32-unknown-elf-gcc
 CROSS_COMPILE = $(patsubst %-gcc,%-,$(CC))
 OBJCOPY ?= $(CROSS_COMPILE)objcopy
 OBJDUMP ?= $(CROSS_COMPILE)objdump
+GDB     ?= $(CROSS_COMPILE)gdb
 
 LINKER_SCRIPT ?= $(COMMON_DIR)/link.ld
 CRT ?= $(COMMON_DIR)/crt0.S
