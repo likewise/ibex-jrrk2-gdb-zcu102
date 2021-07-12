@@ -55,4 +55,4 @@ targets:
       - PRIM_DEFAULT_IMPL=prim_pkg::ImplXilinx
     tools:
       vivado:
-        part: "zu9eg-ffvb1156-2-e"  # Default to ZCU102
+        part: "xczu9eg-ffvb1156-2-e"  # FPGA on the ZCU102
