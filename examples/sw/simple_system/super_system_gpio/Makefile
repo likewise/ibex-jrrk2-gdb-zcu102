@@ -16,10 +16,10 @@ include ${PROGRAM_DIR}/../common/common.mk
 
 # Tested with this toolchain release
 # https://github.com/lowRISC/lowrisc-toolchains/releases/download/20210412-1/lowrisc-toolchain-gcc-rv32imc-20210412-1.tar.xz
-#CC=/opt/lowrisc-toolchain-gcc-rv32imc-20210412-1/bin/riscv32-unknown-elf-gcc
+CC=/opt/lowrisc-toolchain-gcc-rv32imc-20210412-1/bin/riscv32-unknown-elf-gcc
 
 # Tested with OpenOCD 0.11.0 release
-#OPENOCD=/opt/openocd/bin/openocd
+OPENOCD=/opt/openocd/bin/openocd
 
 # First make target rebuilds without optimizations for debugging.
 # With GCC/GDB 9.2.0 -O0 gives better debugging experience than -Og
