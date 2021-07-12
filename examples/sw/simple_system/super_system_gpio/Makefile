@@ -46,5 +46,13 @@ debug: debug-build
 	-ex "next" \
 	$(PROGRAM).elf
 
+# Upload the program using GDB, which starts OpenOCD (0.11.0+ required) with GDB pipe
+upload-debug-build: debug-build
+	$(GDB) -batch -q \
+	-ex "set remotetimeout 1" \
+	-ex "target extended-remote | $(OPENOCD) -c \"gdb_port pipe; log_output openocd.log\" -f ../../../fpga/zcu102/openocd_zynqmp_bscane2.cfg" \
+	-ex "load" \
+	$(PROGRAM).elf
+
 release-build: clean all
 
