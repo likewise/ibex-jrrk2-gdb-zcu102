@@ -32,6 +32,7 @@ debug-build: clean all
 # Debug the program using GDB, which starts OpenOCD (0.11.0+ required) with GDB pipe
 debug: debug-build
 	$(GDB) \
+	-ex "set remotetimeout 3" \
 	-ex "target extended-remote | $(OPENOCD) -c \"gdb_port pipe; log_output openocd.log\" -f ../../../fpga/zcu102/openocd_zynqmp_bscane2.cfg" \
 	-ex "set remote hardware-breakpoint-limit 2" \
 	-ex "set pagination off" \
