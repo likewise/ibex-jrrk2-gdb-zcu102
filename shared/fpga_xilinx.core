@@ -15,6 +15,7 @@ filesets:
       - rtl/ram_1p.sv
       - rtl/ram_2p.sv
       - rtl/bus.sv
+      - rtl/timer.sv
     file_type: systemVerilogSource
 
 targets:

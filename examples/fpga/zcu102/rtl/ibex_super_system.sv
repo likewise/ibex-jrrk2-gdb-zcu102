@@ -11,13 +11,17 @@ module ibex_super_system #(
   parameter logic [31:0] MEM_START    = 32'h00100000;
   parameter logic [31:0] MEM_MASK     = ~(MEM_SIZE-1);
 
-  parameter logic [31:0] GPIO_SIZE    = 4 * 1024; // 1kB
+  parameter logic [31:0] GPIO_SIZE    = 4 * 1024; // 4 kB
   parameter logic [31:0] GPIO_START   = 32'h80000000;
   parameter logic [31:0] GPIO_MASK    = ~(GPIO_SIZE-1);
 
-  parameter logic [31:0] DEBUG_START  = 32'h1a110000;
-  parameter logic [31:0] DEBUG_SIZE   = 64 * 1024; // 64 kB
-  parameter logic [31:0] DEBUG_MASK   = ~(DEBUG_SIZE-1);
+  parameter logic [31:0] TIMER_SIZE    = 4 * 1024; // 4 kB
+  parameter logic [31:0] TIMER_START   = 32'h90000000;
+  parameter logic [31:0] TIMER_MASK    = ~(TIMER_SIZE-1);
+
+  parameter logic [31:0] DEBUG_SIZE    = 64 * 1024; // 64 kB
+  parameter logic [31:0] DEBUG_START   = 32'h1a110000;
+  parameter logic [31:0] DEBUG_MASK    = ~(DEBUG_SIZE-1);
 
   // debug functionality is optional
   localparam bit DBG = 1;
@@ -32,14 +36,15 @@ module ibex_super_system #(
   typedef enum int {
     Ram,
     Gpio,
-    DbgDev
+    Timer,
+    DbgDev // must be last
   } bus_device_e;
 
-  localparam int NrDevices = DBG ? 3 : 2;
+  localparam int NrDevices = DBG ? 4 : 3;
   localparam int NrHosts = DBG ? 2 : 1;
 
   // interrupts
-  //logic timer_irq;
+  logic timer_irq;
 
   // host and device signals
   logic           host_req    [NrHosts];
@@ -95,6 +100,8 @@ module ibex_super_system #(
   assign cfg_device_addr_mask[Ram]    = MEM_MASK;
   assign cfg_device_addr_base[Gpio]   = GPIO_START;
   assign cfg_device_addr_mask[Gpio]   = GPIO_MASK;
+  assign cfg_device_addr_base[Timer]  = TIMER_START;
+  assign cfg_device_addr_mask[Timer]  = TIMER_MASK;
 
   if (DBG) begin : g_dbg_device_cfg
     assign cfg_device_addr_base[DbgDev] = DEBUG_START;
@@ -196,7 +203,7 @@ module ibex_super_system #(
      .data_err_i            (host_err[CoreD]),
 
      .irq_software_i        (1'b0),
-     .irq_timer_i           (1'b0),
+     .irq_timer_i           (timer_irq),
      .irq_external_i        (1'b0),
      .irq_fast_i            (15'b0),
      .irq_nm_i              (1'b0),
@@ -250,6 +257,24 @@ module ibex_super_system #(
 
     .gp_o
   );
+
+  timer #(
+    .DataWidth    (32),
+    .AddressWidth (32)
+    ) u_timer (
+      .clk_i          (clk_sys_i),
+      .rst_ni         (rst_sys_ni),
+
+      .timer_req_i    (device_req[Timer]),
+      .timer_we_i     (device_we[Timer]),
+      .timer_be_i     (device_be[Timer]),
+      .timer_addr_i   (device_addr[Timer]),
+      .timer_wdata_i  (device_wdata[Timer]),
+      .timer_rvalid_o (device_rvalid[Timer]),
+      .timer_rdata_o  (device_rdata[Timer]),
+      .timer_err_o    (device_err[Timer]),
+      .timer_intr_o   (timer_irq)
+    );
 
   assign dbg_slave_req         = device_req[DbgDev] | dbg_instr_req;
   assign dbg_slave_we          = device_req[DbgDev] & device_we[DbgDev];
