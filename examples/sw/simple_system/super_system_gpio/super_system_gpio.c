@@ -36,15 +36,31 @@ static int usleep(unsigned long usec) {
   return usleep_ibex(usec);
 }
 
+// currently broken, requires #define TIMER_BASE 0x90000000 in simple_system_regs.h
+//#define USE_TIMER
+
 int main(int argc, char **argv) {
-  uint32_t leds = 0x3333;
+  uint32_t leds = 0x0003;
+
+#ifdef USE_TIMER
+  timer_enable(2000);
+#endif
 
   while(1) {
-    DEV_WRITE(GPIO_OUT, leds);
-    leds = ~leds;
-    usleep(1000 * 1000); // 1000 ms
-    //delay_loop_ibex(50);
-  }
 
+#ifdef USE_TIMER
+    // read LED0 (driven in timer interrupt handler)
+    uint32_t led0 = DEV_READ(GPIO_OUT, 0) & 1;
+    leds = (get_elapsed_time() >> 14 << 1) | led0;
+    DEV_WRITE(GPIO_OUT, leds);
+    // wait for interrupt
+    asm volatile("wfi");
+#else
+    leds ^= 0xFFFFFFFFU;
+    DEV_WRITE(GPIO_OUT, leds);
+    // busy loop
+    usleep(1000 * 1000);
+#endif    
+  }
   return 0;
 }
