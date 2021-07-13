@@ -23,18 +23,30 @@ This ZCU102 port is based on the Arty A7 example. There is no MMCM/PLL in the cl
   Tested with lowrisc-toolchain-gcc-rv32imc-20210412-1, Vivado 2020.2, OpenOCD 0.11.0.
   (Older versions of OpenOCD will not work.)
 
-   srecord, fusesoc, vivado tools must be in the current PATH 
+  srecord, fusesoc, vivado tools must be in the current PATH 
 
-   https://github.com/lowRISC/lowrisc-toolchains/releases/download/20210412-1/lowrisc-toolchain-gcc-rv32imc-20210412-1.tar.xz
+  Currently some paths are hard-coded as follows in the Makefile and .vscode/*
 
-   Currently some paths are hard-coded as follows in the Makefile and .vscode/*
+  /opt/lowrisc-toolchain-gcc-rv32imc-20210412-1/bin/riscv32-unknown-elf-gcc
+  /opt/openocd/bin/openocd
 
-   /opt/lowrisc-toolchain-gcc-rv32imc-20210412-1/bin/riscv32-unknown-elf-gcc
-   /opt/openocd/bin/openocd
+#### Building OpenOCD 0.11.0 from source
+
+  wget -O- https://altushost-swe.dl.sourceforge.net/project/openocd/openocd/0.11.0/openocd-0.11.0.tar.bz2 | \
+  tar xj -C /tmp/ && cd /tmp/openocd-0.11.0 && \
+  ./configure --prefix=/tmp/openocd && \
+  make install -j16 && \
+  /tmp/openocd/bin/openocd --version
+
+#### Installing prebuilt RISC-V toolchain
+
+  wget -O- https://github.com/lowRISC/lowrisc-toolchains/releases/download/20210412-1/lowrisc-toolchain-gcc-rv32imc-20210412-1.tar.xz | \
+  tar xJ -C /tmp/ && \
+  /tmp/lowrisc-toolchain-gcc-rv32imc-20210412-1/bin/riscv32-unknown-elf-gcc --version
 
 ### Hardware
 
-  - Xilinx ZCU102 board
+  - Xilinx ZCU102 board (connected via USB JTAG connector on one corner of the board)
 
 ## Build
 
@@ -44,9 +56,13 @@ The easiest way to build and execute this example is to call the following make 
 make build-zcu102 program-zcu102
 ```
 
+This will build the super-system-gpio software, the FPGA bitstream, and will program the FPGA.
+
+The next steps are then invoked for you (and you can skip these, proceed directly to Debug section below).
+
 ### Software
 
-First the software must be built. Go into `examples/sw/simple_system/super_system_gpio` and call:
+The software can be individually be (re)built. Go into `examples/sw/simple_system/super_system_gpio` and call:
 
 ```
 make CC=/opt/lowrisc-toolchain-gcc-rv32imc-20210412-1/bin/riscv32-unknown-elf-gcc
@@ -108,8 +124,10 @@ Press CTRL-C to stop OpenOCD.
 
 ### Debug with GDB (textual interface)
 
-If the above works, you can continue to debug. A "debug" Makefile target is available as an
-example textual GDB interface:
+If the above works, you can continue to debug. Press CTRL-C to stop OpenOCD, as the next command will run
+OpenOCD through GDB (and requires the current OpenOCD to be stopped!).
+
+A "debug" Makefile target is available as an example textual GDB interface:
 
 make -C examples/sw/simple_system/super_system_gpio debug
 
