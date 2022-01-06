@@ -42,10 +42,12 @@ static int usleep(unsigned long usec) {
 int main(int argc, char **argv) {
   uint32_t leds = 0x0003;
 
+#define USE_TIMER 1
 #ifdef USE_TIMER
   timer_enable(2000);
 #endif
 
+  uint32_t counter = 0;
   while(1) {
 
 #ifdef USE_TIMER
@@ -53,11 +55,14 @@ int main(int argc, char **argv) {
     uint32_t led0 = DEV_READ(GPIO_OUT, 0) & 1;
     leds = (get_elapsed_time() >> 14 << 1) | led0;
     DEV_WRITE(GPIO_OUT, leds);
+    uint32_t a = 43;
+    
+    a /= 5;
     // wait for interrupt
     asm volatile("wfi");
 #else
     leds ^= 0xFFFFFFFFU;
-    DEV_WRITE(GPIO_OUT, leds);
+    DEV_WRITE(GPIO_OUT, counter++);
     // busy loop
     usleep(1000 * 1000);
 #endif    
